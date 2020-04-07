@@ -11,15 +11,16 @@ object KafkaConsumer extends App{
     .setMaster("local[2]")
     .setAppName("Covid19Twitter")
 
-  val streamingContext = new StreamingContext(conf, Seconds(1))
+  val streamingContext = new StreamingContext(conf, Seconds(10))
+
   println("here")
   val kafkaParams = Map[String, Object](
     "bootstrap.servers" -> "localhost:9092",
     "key.deserializer" -> classOf[StringDeserializer],
     "value.deserializer" -> classOf[StringDeserializer],
     "group.id" -> "test_group",
-    "auto.offset.reset_config" -> "earliest",
-    "enable.auto.commit_config" -> (false: java.lang.Boolean)
+    "auto.offset.reset" -> "earliest",
+    "enable.auto.commit" -> (false: java.lang.Boolean)
   )
 
   val topics = Array("tweets_of_Coronavirus")
@@ -28,7 +29,23 @@ object KafkaConsumer extends App{
     PreferConsistent,
     Subscribe[String, String](topics, kafkaParams)
   )
-  println(tweets.count())
-  tweets.map(record => (println(record.key), println(record.value)))
-  println("after reading")
+
+
+  tweets.foreachRDD { rdd =>
+    // Get the offset ranges in the RDD
+    val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+    for (o <- offsetRanges) {
+      println(s"${o.topic} ${o.partition} offsets: ${o.fromOffset} to ${o.untilOffset}")
+    }
+  }
+
+  println("check this")
+  tweets.foreachRDD(r => {
+    println("*** got an RDD, size = " + r.count())
+  })
+
+  tweets.map(record => ( record.value)).saveAsTextFiles("tweets")
+
+  streamingContext.start()
+  streamingContext.awaitTermination()
 }
