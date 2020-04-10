@@ -14,13 +14,14 @@ object KafkaConsumer extends App{
   val streamingContext = new StreamingContext(conf, Seconds(10))
 
   println("here")
+
   val kafkaParams = Map[String, Object](
     "bootstrap.servers" -> "localhost:9092",
     "key.deserializer" -> classOf[StringDeserializer],
     "value.deserializer" -> classOf[StringDeserializer],
     "group.id" -> "test_group",
-    "auto.offset.reset" -> "earliest",
-    "enable.auto.commit" -> (false: java.lang.Boolean)
+    "auto.offset.reset" -> "latest",
+    "enable.auto.commit" -> (true: java.lang.Boolean)
   )
 
   val topics = Array("tweets_of_Coronavirus")
@@ -44,7 +45,7 @@ object KafkaConsumer extends App{
     println("*** got an RDD, size = " + r.count())
   })
 
-  tweets.map(record => ( record.value)).saveAsTextFiles("tweets")
+  tweets.map(record => ( record.value)).saveAsTextFiles("tweets10-4")
 
   streamingContext.start()
   streamingContext.awaitTermination()
