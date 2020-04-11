@@ -1,31 +1,57 @@
-import DataCleaning.spark
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.functions.regexp_replace
+import org.apache.spark.sql.SparkSession
 
-object DataCleaning extends  App{
+import scala.collection.mutable
+//import scala.reflect.io.File
+import java.io.File
 
-  import org.apache.spark.sql.SparkSession
-
-  val spark = SparkSession
-    .builder()
-    .master("local[2]")
-    .appName("Spark SQL basic example")
-    .getOrCreate()
-
-  // For implicit conversions like converting RDDs to DataFrames
-
-  val df = spark.read.json("C:/Users/adwai/Documents/Scala Project/KafkaConsumer/tweets10-4-1586549770000")
+object DataCleaning extends  App with Context {
 
 
-  val newDf1 = df.withColumn("text", regexp_replace(df("text"), s"""[^ 'a-zA-Z0-9,.?!-@#%&]""", ""))
+  val originalDf = readFile("json", "C:/Users/adwai/Documents/Scala Project/KafkaConsumer/tweets10-4-1586575460000")
 
-  //val newDf1 = newDf.withColumn("text", regexp_replace(newDf("text"), """[ \w+:\/{2}[\d\w-]+(\.[\d\w-]+)*(?:(?:\/[^\s/]*))*]""", ""))
-  print("here1")
-  newDf1.createOrReplaceTempView("coviddata")
+  val textCleanedDF = originalDf.withColumn("text", regexp_replace(originalDf("text"), s"""[^ 'a-zA-Z0-9-@#%&]""", ""))
 
-  val newdf2  = spark.sql("SELECT text  FROM coviddata")
-  // Displays the content of the DataFrame to stdout
-  newdf2.show(false)
-  newdf2.printSchema()
+  val filteredDf = textCleanedDF.filter(textCleanedDF("text").substr(1,2) =!= "RT" )
+
+  val entity = """&(amp|lt|gt|quot);"""
+  val urlStart1 = """(https?://|www\.)"""
+  val commonTLDs = """(com|co\.uk|org|net|info|ca|ly|mp|edu|gov)"""
+  val urlStart2 = """[A-Za-z0-9\.-]+?\.""" + commonTLDs + """(?=[/ \W])"""
+  val urlBody = """[^ \t\r\n<>]*?"""
+  val punctChars = """['“\".?!,:;]"""
+  val urlExtraCrapBeforeEnd = "(" + punctChars + "|" + entity + ")+?"
+  val urlEnd = """(\.\.+|[<>]|\s|$)"""
+  val url = """\b(""" + urlStart1 + "|" + urlStart2 + ")" + urlBody + "(?=(" + urlExtraCrapBeforeEnd + ")?" + urlEnd + ")"
+
+  val cleanedDf = filteredDf.withColumn("text", regexp_replace(filteredDf("text"), url, ""))
+
+  cleanedDf.createOrReplaceTempView("coviddata")
+
+  val newdf3  = sparkSession.sql("SELECT *  FROM coviddata")
+
+  newdf3.show(false)
+  newdf3.write.json("output")
+  newdf3.printSchema()
+
+
+  def readFile(format :String,path :String)   = {
+
+      sparkSession.read.format(format).load(path)
+    
+  }
+
+  def directoryPresent(path :String)   = {
+    val d = new File(path)
+    if (d.exists && d.isDirectory) {
+      true
+    }else {
+      false
+    }
+  }
+
+
+
 }
