@@ -14,10 +14,11 @@ import org.slf4j.LoggerFactory
 
 object DataCleaning extends  App with Context {
 
-
     val logger = LoggerFactory.getLogger(getClass.getSimpleName)
+
     logger.info("properties file loaded" )
-    val propertiesFile = getClass.getResource("application.properties")
+
+  val propertiesFile = getClass.getResource("application.properties")
     val properties: Properties = new Properties()
 
     if (propertiesFile != null) {
@@ -37,51 +38,32 @@ object DataCleaning extends  App with Context {
     if (directoryPresent(inputFilePath)) {
 
       val originalDf = readFile(inputFileFormat, inputFilePath)
-       println("1")
-      val textCleanedDF = originalDf.withColumn("text", regexp_replace(originalDf("text"), s"""[^ 'a-zA-Z0-9@#%&]""", ""))
-      println("2")
+
+      val finalString = preppareRegexPattern
+
+      val textCleanedDF = originalDf.withColumn("text", regexp_replace(originalDf("text"), finalString, ""))
+
       val filteredDf = textCleanedDF.filter(textCleanedDF("text").substr(1, 2) =!= "RT")
-      println("3")
+
       val df1 = filteredDf.withColumn("text", trim(filteredDf("text")))
-      println("4")
+
       val df2 = df1.withColumn("text",lower(df1("text")))
-      println("5")
-      val df3 = df2.withColumn("text",regexp_replace(df2("text"),"@[a-zA-Z]+" ,""))
-      val df44 = df3.withColumn("text",regexp_replace(df3("text"),"""" +""" ,""))
-      println("6")
 
-      println("7")
-
-      println("8")
-      val entity = """&(amp|lt|gt|quot);"""
-      val urlStart1 = """(https?://|www\.)"""
-      val commonTLDs = """(com|co\.uk|org|net|info|ca|ly|mp|edu|gov)"""
-      val urlStart2 = """[A-Za-z0-9\.-]+?\.""" + commonTLDs + """(?=[/ \W])"""
-      val urlBody = """[^ \t\r\n<>]*?"""
-      val punctChars = """['“\".?!,:;]"""
-      val urlExtraCrapBeforeEnd = "(" + punctChars + "|" + entity + ")+?"
-      val urlEnd = """(\.\.+|[<>]|\s|$)"""
-      val url = """\b(""" + urlStart1 + "|" + urlStart2 + ")" + urlBody + "(?=(" + urlExtraCrapBeforeEnd + ")?" + urlEnd + ")"
-
-      val cleanedDf = df44.withColumn("text", regexp_replace(df44("text"), url, ""))
-
-
-      val df4 = cleanedDf.withColumn("text",split(cleanedDf("text")," "))
+      val df4 = df2.withColumn("text",split(df2("text")," "))
 
       val removedStopWordsDf = removeStopWords(df4,"text")
 
       removedStopWordsDf.createOrReplaceTempView("coviddata")
 
-      val newdf3 = sparkSession.sql("SELECT *  FROM coviddata")
+      val newdf3 = sparkSession.sql("SELECT text  FROM coviddata")
 
       newdf3.show(false)
-      newdf3.write.json("output")
+    //  newdf3.write.json("output")
       newdf3.printSchema()
 
     }else {
       logger.info("Input file not present")
     }
-
 
   def removeStopWords(inputDF : sql.DataFrame,columnname :String)   = {
 
@@ -96,6 +78,24 @@ object DataCleaning extends  App with Context {
     sparkSession.read.format(format).load(path)
   }
 
+  def preppareRegexPattern   = {
+    val junkContent = """[^ 'a-zA-Z0-9@#%&?!]"""
+    val taggedPeople = """@(.*?)[\s]"""
+    val additionalSpaces = """" +"""
+    val entity = """&(amp|lt|gt|quot);"""
+    val urlStart1 = """(https?://|www\.)"""
+    val commonTLDs = """(com|co\.uk|org|net|info|ca|ly|mp|edu|gov)"""
+    val urlStart2 = """[A-Za-z0-9\.-]+?\.""" + commonTLDs + """(?=[/ \W])"""
+    val urlBody = """[^ \t\r\n<>]*?"""
+    val punctChars = """['“\".?!,:;]"""
+    val urlExtraCrapBeforeEnd = "(" + punctChars + "|" + entity + ")+?"
+    val urlEnd = """(\.\.+|[<>]|\s|$)"""
+    val url = """\b(""" + urlStart1 + "|" + urlStart2 + ")" + urlBody + "(?=(" + urlExtraCrapBeforeEnd + ")?" + urlEnd + ")"
+
+    junkContent + "|" + taggedPeople + "|" +additionalSpaces + "|" + url
+
+  }
+
 
   def directoryPresent(path :String)   = {
       val d = new File(path)
@@ -104,7 +104,7 @@ object DataCleaning extends  App with Context {
       if (d.exists && d.isDirectory) {
         true
       }else {
-        false
+        true
       }
     }
 
