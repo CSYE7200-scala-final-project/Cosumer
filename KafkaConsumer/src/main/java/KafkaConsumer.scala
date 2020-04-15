@@ -45,7 +45,7 @@ object KafkaConsumer extends App{
     println("*** got an RDD, size = " + r.count())
   })
 
-  tweets.map(record => ( record.value)).saveAsTextFiles("tweets10-4")
+  tweets.map(record => ( record.value)).saveAsTextFiles("tweets12-4")
 
   streamingContext.start()
   streamingContext.awaitTermination()
