@@ -2,14 +2,19 @@ import java.util.Properties
 
 import org.apache.spark.{SparkConf, sql}
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.functions.{trim, lower, split,regexp_replace}
+import org.apache.spark.sql.functions.{lower, regexp_replace, split, trim}
 import org.apache.spark.sql.functions
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.feature.StopWordsRemover
+
 import scala.collection.mutable
 import scala.io.Source
 import java.io.File
+
+import DataCleaning.stopSparkApplication
 import org.slf4j.LoggerFactory
+
+import scala.util.{Failure, Success, Try}
 
 
 object DataCleaning extends  App with Context {
@@ -18,7 +23,7 @@ object DataCleaning extends  App with Context {
 
     logger.info("properties file loaded" )
 
-  val propertiesFile = getClass.getResource("application.properties")
+    val propertiesFile = getClass.getResource("application.properties")
     val properties: Properties = new Properties()
 
     if (propertiesFile != null) {
@@ -31,35 +36,50 @@ object DataCleaning extends  App with Context {
     }
 
     val inputFileFormat = properties.getProperty("inputFileformat")
-    val inputFilePath   = properties.getProperty("inputFilepath")
+    val inputFiledir   = properties.getProperty("inputFiledir")
+    val inputfilePath  =  inputFiledir + "/" + properties.getProperty("inputFilePattern")
 
-    logger.info(inputFilePath + " " + inputFileFormat)
+    logger.info(inputfilePath + " " + inputFileFormat)
 
-    if (directoryPresent(inputFilePath)) {
+    if (directoryPresent(inputFiledir)) {
 
-      val originalDf = readFile(inputFileFormat, inputFilePath)
+      val originalDf = readFile(inputFileFormat, inputfilePath)
+
+      logger.info("Input File read successfully")
 
       val finalString = preppareRegexPattern
 
-      val textCleanedDF = originalDf.withColumn("text", regexp_replace(originalDf("text"), finalString, ""))
+      val textOriginal = originalDf.withColumn("text-original", originalDf("text"))
 
-      val filteredDf = textCleanedDF.filter(textCleanedDF("text").substr(1, 2) =!= "RT")
+      val textCleanedDf = textOriginal.withColumn("text", regexp_replace(textOriginal("text"), finalString, ""))
 
-      val df1 = filteredDf.withColumn("text", trim(filteredDf("text")))
+      val changeExclamationDf = textCleanedDf.withColumn("text", regexp_replace(textCleanedDf("text"), "!", " ! "))
 
-      val df2 = df1.withColumn("text",lower(df1("text")))
+      val changeQuestionDf = changeExclamationDf.withColumn("text", regexp_replace(changeExclamationDf("text"), "\\?", " ? "))
 
-      val df4 = df2.withColumn("text",split(df2("text")," "))
+      val removedSpaces = changeQuestionDf.withColumn("text", regexp_replace(changeQuestionDf("text"), " +", " "))
 
-      val removedStopWordsDf = removeStopWords(df4,"text")
+      val filteredDf = removedSpaces.filter(removedSpaces("text").substr(1, 2) =!= "RT")
+
+      val trimeedDf = filteredDf.withColumn("text", trim(filteredDf("text")))
+
+      val loweredDf = trimeedDf.withColumn("text",lower(trimeedDf("text")))
+
+      val splittedDf = loweredDf.withColumn("text",split(loweredDf("text")," "))
+
+      val removedStopWordsDf = removeStopWords(splittedDf,"text")
 
       removedStopWordsDf.createOrReplaceTempView("coviddata")
 
-      val newdf3 = sparkSession.sql("SELECT text  FROM coviddata")
+      val sqlDf = sparkSession.sql("SELECT *  FROM coviddata")
 
-      newdf3.show(false)
-    //  newdf3.write.json("output")
-      newdf3.printSchema()
+     // sqlDf.show(30,false)
+
+      writeOutputJson(sqlDf)
+
+      sqlDf.printSchema()
+
+      logger.info("Application complete")
 
     }else {
       logger.info("Input file not present")
@@ -75,13 +95,41 @@ object DataCleaning extends  App with Context {
   }
 
   def readFile(format :String,path :String)   = {
-    sparkSession.read.format(format).load(path)
+
+      sparkSession.read.format(format).load(path)
+
+    }
+
+  def writeOutputJson(outputDf :sql.DataFrame)   = {
+
+   val status = Try{ outputDf.write.json("output") }
+
+    status match {
+
+      case  Failure(exception) =>{
+        logger.error("Error while writing to File")
+        stopSparkApplication()
+        throw new Exception("Error while writing output File")
+      }
+
+      case Success(value) => {
+
+        logger.info("File written successfully")
+
+      }
+
+    }
+
   }
+  def stopSparkApplication()   =
+    {
+      sparkSession.stop()
+      logger.info("Spark application stopped")
+    }
 
   def preppareRegexPattern   = {
-    val junkContent = """[^ 'a-zA-Z0-9@#%&?!]"""
+    val junkContent = """[^ 'a-zA-Z0-9@#%?!]"""
     val taggedPeople = """@(.*?)[\s]"""
-    val additionalSpaces = """" +"""
     val entity = """&(amp|lt|gt|quot);"""
     val urlStart1 = """(https?://|www\.)"""
     val commonTLDs = """(com|co\.uk|org|net|info|ca|ly|mp|edu|gov)"""
@@ -92,19 +140,19 @@ object DataCleaning extends  App with Context {
     val urlEnd = """(\.\.+|[<>]|\s|$)"""
     val url = """\b(""" + urlStart1 + "|" + urlStart2 + ")" + urlBody + "(?=(" + urlExtraCrapBeforeEnd + ")?" + urlEnd + ")"
 
-    junkContent + "|" + taggedPeople + "|" +additionalSpaces + "|" + url
+    junkContent + "|" + taggedPeople   + "|" + url
 
   }
 
 
   def directoryPresent(path :String)   = {
-      val d = new File(path)
+    val d = new File(path)
     print(d.exists())
     print(d.isDirectory)
       if (d.exists && d.isDirectory) {
         true
       }else {
-        true
+        false
       }
     }
 
