@@ -1,0 +1,37 @@
+# File location and type
+val file_location = "/FileStore/tables/*"
+val file_type = "json"
+
+# Json options
+val infer_schema = "false"
+
+# The applied options are for CSV files. For other file types, these will be ignored.
+val df = spark.read.format(file_type) \
+  .option("inferSchema", infer_schema) \
+  .load(file_location)
+  
+val temp_table_name = "covid_prediction"
+
+df.createOrReplaceTempView(temp_table_name)
+
+select count(emotion) from covid_prediction
+group by emotion
+
+--------------------------------------------------------------------------------------------------------
+
+val file_location = "/FileStore/tables/stage/*"
+val file_type = "json"
+
+
+val infer_schema = "false"
+
+
+val df = spark.read.format(file_type).option("inferSchema", infer_schema).load(file_location)
+
+val temp_table_name = "covid"
+
+df.createOrReplaceTempView(temp_table_name)
+
+select userLocation, count(*) from covid
+where userLocation !=  '' 
+group by  userLocation

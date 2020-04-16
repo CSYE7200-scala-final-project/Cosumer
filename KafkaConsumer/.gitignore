@@ -1,0 +1,8 @@
+# Default ignored files
+/workspace.xml
+
+/.idea/*
+/classes/*
+/project/*
+/target/*
+/src/main/scala/META-INF/*
