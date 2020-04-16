@@ -61,7 +61,7 @@ object KafkaConsumer extends App {
   val outputPath = properties.getProperty("outPutConsumer")
   tweets.foreachRDD { rdd =>
     if (!rdd.isEmpty()) {
-      rdd.map(records => records.value()).saveAsTextFile(outputPath  + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now))
+      rdd.map(records => records.value()).saveAsTextFile(outputPath  + "/tweets" + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now))
       println("Output File written")
     }
   }
@@ -98,7 +98,7 @@ object KafkaConsumer extends App {
       "value.deserializer" -> classOf[StringDeserializer],
       "group.id" -> consumerGroup,
       "auto.offset.reset" -> offsetSetting,
-      "enable.auto.commit" -> (false: java.lang.Boolean)
+      "enable.auto.commit" -> (true: java.lang.Boolean)
     )
 
   }

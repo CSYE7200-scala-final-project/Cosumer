@@ -26,7 +26,7 @@ object processor extends App {
     logger.error("properties file cannot be loaded at path ")
   }
 
-  val path = properties.getProperty("inputCleanedFilePath")
+  val path = properties.getProperty("optimizedPath")
 
   val spark = SparkConfig("local[2]", "Covid19Twitter")
 
