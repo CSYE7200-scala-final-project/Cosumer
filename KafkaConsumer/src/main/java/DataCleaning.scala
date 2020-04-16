@@ -100,7 +100,7 @@ object DataCleaning extends  App with Context {
 
     val optimizedpath = properties.getProperty("optimizedPath")
 
-    outputDf.write.json(optimizedpath + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now))
+    outputDf.write.json(optimizedpath +"/cleanedtweets"+ DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now))
 
   }
   def stopSparkApplication()   =
