@@ -1,19 +1,14 @@
+import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Properties
 
-import org.apache.spark.{SparkConf, sql}
-import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.functions.{lower, regexp_replace, split, trim}
-import org.apache.spark.sql.functions
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.feature.StopWordsRemover
-
-import scala.collection.mutable
-import scala.io.Source
-import java.io.File
-
-import DataCleaning.stopSparkApplication
+import org.apache.spark.sql
+import org.apache.spark.sql.functions.{lower, regexp_replace, split, trim}
 import org.slf4j.LoggerFactory
 
+import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 
@@ -36,7 +31,7 @@ object DataCleaning extends  App with Context {
     }
 
     val inputFileFormat = properties.getProperty("inputFileformat")
-    val inputFiledir   = properties.getProperty("inputFiledir")
+    val inputFiledir   = properties.getProperty("outPutConsumer")
     val inputfilePath  =  inputFiledir + "/" + properties.getProperty("inputFilePattern")
 
     logger.info(inputfilePath + " " + inputFileFormat)
@@ -82,6 +77,7 @@ object DataCleaning extends  App with Context {
       logger.info("Application complete")
 
     }else {
+      throw new Exception("Input File not present")
       logger.info("Input file not present")
     }
 
@@ -102,23 +98,9 @@ object DataCleaning extends  App with Context {
 
   def writeOutputJson(outputDf :sql.DataFrame)   = {
 
-   val status = Try{ outputDf.write.json("output") }
+    val optimizedpath = properties.getProperty("optimizedPath")
 
-    status match {
-
-      case  Failure(exception) =>{
-        logger.error("Error while writing to File")
-        stopSparkApplication()
-        throw new Exception("Error while writing output File")
-      }
-
-      case Success(value) => {
-
-        logger.info("File written successfully")
-
-      }
-
-    }
+    outputDf.write.json(optimizedpath + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now))
 
   }
   def stopSparkApplication()   =
@@ -147,8 +129,6 @@ object DataCleaning extends  App with Context {
 
   def directoryPresent(path :String)   = {
     val d = new File(path)
-    print(d.exists())
-    print(d.isDirectory)
       if (d.exists && d.isDirectory) {
         true
       }else {
