@@ -16,9 +16,9 @@ case class SparkConfig(master: String, appName: String) {
 
   def readJson(path: String) = session.read.json(path)
 
-  def emptyDf(columnNames: List[String]) = {
-    val schema = StructType(columnNames.map(fieldName => StructField(fieldName, FloatType, true)))
-    session.createDataFrame(session.sparkContext.emptyRDD[Row], schema)
-  }
+//  def emptyDf(columnNames: List[String]) = {
+//    val schema = StructType(columnNames.map(fieldName => StructField(fieldName, FloatType, true)))
+//    session.createDataFrame(session.sparkContext.emptyRDD[Row], schema)
+//  }
 
 }

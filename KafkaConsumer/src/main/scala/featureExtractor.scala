@@ -8,12 +8,16 @@ case class featureExtractor(col: String, wordsData: sql.DataFrame) {
   val model: CountVectorizerModel = new CountVectorizer()
     .setInputCol("text-final")
     .setOutputCol("rawFeatures")
+    .setMinDF(2)
     .fit(wordsData)
   lazy val idf = new IDF().setInputCol("rawFeatures").setOutputCol("features")
 //  lazy val featurizedData = hashingTF.transform(wordsData)
-  lazy val featurizedData = model.transform(wordsData)
+  def featurizedData(data: sql.DataFrame) = model.transform(data)
 
-  def  rescaledData = idf.fit(featurizedData).transform(featurizedData)
+  def rescaledData(data: sql.DataFrame) = {
+    val fData = featurizedData(data)
+    idf.fit(fData).transform(fData)
+  }
 }
 
 object featureExtractor {
