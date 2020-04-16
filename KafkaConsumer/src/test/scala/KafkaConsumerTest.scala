@@ -1,7 +1,7 @@
 import org.scalatest.{FlatSpec, Matchers}
-import com.edu.neu.DataCleaning.directoryPresent
-import com.edu.neu.DataCleaning.readFile
-import com.edu.neu.KafkaConsumer.getKafkaParams
+import DataCleaning.directoryPresent
+import DataCleaning.readFile
+import KafkaConsumer.getKafkaParams
 import org.apache.spark.sql
 
 
